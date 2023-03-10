@@ -8,6 +8,7 @@ pub struct Data {
     pub url: String,
     domain: String,
     permalink: String,
+    subreddit: String,
     upvote_ratio: f64,
     created_utc: f64,
     total_awards_received: i32,

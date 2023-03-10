@@ -29,11 +29,11 @@ async fn main() {
         })
         .init();
 
-    let subreddit = get_subreddit(args.subreddit, args.username).unwrap();
+    let subreddit = get_subreddit(args.subreddit, args.username, &args.query).unwrap();
 
     let data = call_reddit(
         &subreddit,
-        args.query,
+        &args.query,
         &args.listing,
         args.limit,
         &args.time,
@@ -47,7 +47,17 @@ async fn main() {
         info!("Downloading posts");
         // TODO - Remove clone
         let data = data.0.clone();
-        let output_folder = Arc::new(format!("posts-{}", subreddit.replace(['/', '\\'], "-")));
+        let folder_suffix = if subreddit.trim().is_empty() {
+            format!(
+                "-{}",
+                args.query
+                    .unwrap_or_default()
+                    .replace(['/', ' ', '\\'], "-")
+            )
+        } else {
+            subreddit.replace('/', "-")
+        };
+        let output_folder = Arc::new(format!("posts{folder_suffix}"));
 
         tokio::fs::create_dir_all(output_folder.as_ref())
             .await
@@ -70,15 +80,23 @@ async fn main() {
     write_data_to_file(data, args.output).await.unwrap();
 }
 
-fn get_subreddit(subreddit: Option<String>, username: Option<String>) -> Result<String, String> {
-    match (username, subreddit) {
-        (Some(username), None) => {
-            info!("Downloading posts from user {}", username.green());
-            Ok(format!("u/{username}"))
+fn get_subreddit(
+    subreddit: Option<String>,
+    username: Option<String>,
+    query: &Option<String>,
+) -> Result<String, String> {
+    match (username, subreddit, query) {
+        (_, _, Some(query)) => {
+            info!("Searching for posts with query {}", query.green());
+            Ok(String::new())
         }
-        (None, Some(subreddit)) => {
+        (Some(username), None, _) => {
+            info!("Downloading posts from user {}", username.green());
+            Ok(format!("/u/{username}"))
+        }
+        (None, Some(subreddit), _) => {
             info!("Downloading posts from subreddit {}", subreddit.green());
-            Ok(format!("r/{subreddit}"))
+            Ok(format!("/r/{subreddit}"))
         }
         _ => Err("Invalid arguments".to_string()),
     }
@@ -86,7 +104,7 @@ fn get_subreddit(subreddit: Option<String>, username: Option<String>) -> Result<
 
 async fn call_reddit<T>(
     username: T,
-    query: Option<String>,
+    query: &Option<String>,
     listing: T,
     limit: u32,
     time: T,
@@ -108,7 +126,7 @@ where
     let client = reqwest::Client::new();
     let response = client
         .get(format!(
-            "https://www.reddit.com/{}/{}.json?limit={}&t={}{}",
+            "https://www.reddit.com{}/{}.json?limit={}&t={}{}",
             username.as_ref(),
             listing_formatted,
             limit,

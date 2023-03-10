@@ -2,14 +2,9 @@ use clap::{ArgGroup, Parser};
 
 #[derive(Parser)]
 #[command(group(
-    ArgGroup::new("reddit")
-        .required(true)
-        .args(["username", "subreddit"])
-))]
-#[command(group(
     ArgGroup::new("type")
         .required(true)
-        .args(["query", "listing"])
+        .args(["query", "listing", "username", "subreddit"])
 ))]
 /// Downloads posts from a Reddit user's posts
 pub struct Args {
@@ -25,7 +20,7 @@ pub struct Args {
     #[clap(short, long, default_value = "25")]
     pub limit: u32,
 
-    /// The parameter to search by
+    /// The parameter to search by, it is not scoped to the subreddit
     #[clap(short, long)]
     pub query: Option<String>,
 
