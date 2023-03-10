@@ -1,4 +1,4 @@
 /target
-/posts
+/posts*
 .vscode
 data.json

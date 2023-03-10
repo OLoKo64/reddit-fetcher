@@ -6,13 +6,18 @@ use tokio::io::AsyncWriteExt;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub struct RedditPost<'a> {
+    output_folder: &'a str,
     url: &'a str,
     filename: &'a str,
 }
 
 impl<'a> RedditPost<'a> {
-    pub fn new(url: &'a str, filename: &'a str) -> Self {
-        Self { url, filename }
+    pub fn new(output_folder: &'a str, url: &'a str, filename: &'a str) -> Self {
+        Self {
+            output_folder,
+            url,
+            filename,
+        }
     }
 
     pub async fn download_post(&self) -> Result<(), Box<dyn Error>> {
@@ -23,9 +28,7 @@ impl<'a> RedditPost<'a> {
             || ["/", r#"\"#].contains(&file_extension)
             || !["png", "jpg", "jpeg", "gif", "mp4"].contains(&file_extension)
         {
-            return Err(
-                format!("Failed to get file extension for {url}, skipping download").into(),
-            );
+            return Err(format!("{}, is not a valid file extension", url.yellow()).into());
         }
 
         let client = reqwest::Client::new();
@@ -44,8 +47,7 @@ impl<'a> RedditPost<'a> {
             filename = format!("{filename}.{file_extension}");
         }
 
-        let path = Path::new("posts").join(filename);
-        tokio::fs::create_dir_all(&path.parent().unwrap()).await?;
+        let path = Path::new(self.output_folder).join(filename);
         let file_with_path = path.to_str().unwrap();
         let mut file = tokio::fs::File::create(file_with_path).await?;
         file.write_all(response.bytes().await?.as_ref()).await?;
@@ -55,8 +57,9 @@ impl<'a> RedditPost<'a> {
     }
 
     fn parse_url(&self) -> Result<String, String> {
-        let is_url_file = lazy_regex::regex!(r#"\.[a-zA-Z0-9]+$"#);
+        let is_url_file = regex!(r#"\.[a-zA-Z0-9]+$"#);
         let imgur_gifv_regex = regex!(r#"https://i.imgur.com/.*.gifv"#);
+
         if !is_url_file.is_match(self.url) {
             return Err(format!("{} may not contain a file", self.url.yellow()));
         }

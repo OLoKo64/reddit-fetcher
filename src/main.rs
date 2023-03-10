@@ -6,7 +6,7 @@ use chrono::Local;
 use clap::Parser;
 use log::{error, info};
 use owo_colors::OwoColorize;
-use std::{error::Error, io::Write};
+use std::{error::Error, io::Write, sync::Arc};
 use tokio::io::AsyncWriteExt;
 use types::RedditResponseData;
 
@@ -31,7 +31,15 @@ async fn main() {
 
     let subreddit = get_subreddit(args.subreddit, args.username).unwrap();
 
-    let data = call_reddit(subreddit, args.limit, args.time).await.unwrap();
+    let data = call_reddit(
+        &subreddit,
+        args.query,
+        &args.listing,
+        args.limit,
+        &args.time,
+    )
+    .await
+    .unwrap();
 
     // Download posts
     let mut downloaders = Vec::new();
@@ -39,15 +47,20 @@ async fn main() {
         info!("Downloading posts");
         // TODO - Remove clone
         let data = data.0.clone();
+        let output_folder = Arc::new(format!("posts-{}", subreddit.replace(['/', '\\'], "-")));
+
+        tokio::fs::create_dir_all(output_folder.as_ref())
+            .await
+            .unwrap();
 
         for post in data {
-            let url = post.url;
-            let filename = post.title;
+            let output_folder = Arc::clone(&output_folder);
             downloaders.push(tokio::spawn(async move {
-                let post = downloader::RedditPost::new(&url, &filename);
+                let post_reddit =
+                    downloader::RedditPost::new(output_folder.as_ref(), &post.url, &post.title);
 
-                post.download_post().await.unwrap_or_else(|err| {
-                    error!("{} {}", filename.red(), err.red());
+                post_reddit.download_post().await.unwrap_or_else(|err| {
+                    error!("{} | {}", post.title.red(), err.red());
                 });
             }));
         }
@@ -73,19 +86,34 @@ fn get_subreddit(subreddit: Option<String>, username: Option<String>) -> Result<
 
 async fn call_reddit<T>(
     username: T,
+    query: Option<String>,
+    listing: T,
     limit: u32,
     time: T,
 ) -> Result<RedditResponseData, Box<dyn Error>>
 where
     T: AsRef<str>,
 {
+    let query_formatted = match &query {
+        Some(query) => format!("&q={query}"),
+        None => String::new(),
+    };
+
+    let listing_formatted = if query.is_some() {
+        "search"
+    } else {
+        listing.as_ref()
+    };
+
     let client = reqwest::Client::new();
     let response = client
         .get(format!(
-            "https://www.reddit.com/{}/top.json?limit={}&t={}",
+            "https://www.reddit.com/{}/{}.json?limit={}&t={}{}",
             username.as_ref(),
+            listing_formatted,
             limit,
-            time.as_ref()
+            time.as_ref(),
+            query_formatted
         ))
         .send()
         .await?
