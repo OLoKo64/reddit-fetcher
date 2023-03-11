@@ -6,7 +6,7 @@ use clap::{ArgGroup, Parser};
         .required(true)
         .args(["query", "listing", "username", "subreddit"])
 ))]
-/// Downloads posts from a Reddit user's posts
+/// Downloads posts from a subreddit or user
 pub struct Args {
     /// The username of the Reddit user
     #[clap(short, long)]
