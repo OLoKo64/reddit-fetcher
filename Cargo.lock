@@ -815,7 +815,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "reddit-api"
+name = "reddit-fetcher"
 version = "0.1.0"
 dependencies = [
  "chrono",
