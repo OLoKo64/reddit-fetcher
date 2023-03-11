@@ -2,6 +2,7 @@ mod arg_parser;
 mod downloader;
 mod types;
 
+use arg_parser::Args;
 use chrono::Local;
 use clap::Parser;
 use log::{error, info, warn};
@@ -29,17 +30,9 @@ async fn main() {
         })
         .init();
 
-    let subreddit = get_subreddit(args.subreddit, args.username, &args.query).unwrap();
+    let subreddit = get_subreddit(&args.subreddit, &args.username, &args.query).unwrap();
 
-    let data = reddit_caller(
-        args.limit,
-        &subreddit,
-        &args.query,
-        &args.listing,
-        &args.time,
-    )
-    .await
-    .unwrap();
+    let data = reddit_caller(&args, &subreddit).await.unwrap();
 
     // Download posts
     let mut downloaders = Vec::new();
@@ -80,17 +73,11 @@ async fn main() {
     write_data_to_file(data, args.output).await.unwrap();
 }
 
-async fn reddit_caller(
-    limit: u32,
-    subreddit: &str,
-    query: &Option<String>,
-    listing: &str,
-    time: &str,
-) -> Result<Vec<Data>, Box<dyn Error>> {
-    let rounds = number_of_calls(limit);
+async fn reddit_caller(args: &Args, subreddit: &str) -> Result<Vec<Data>, Box<dyn Error>> {
+    let rounds = number_of_calls(args.limit);
 
     let mut data = Vec::new();
-    let mut remaining_limit = limit;
+    let mut remaining_limit = args.limit;
     let mut after = String::new();
     for round in 0..rounds {
         info!(
@@ -99,7 +86,7 @@ async fn reddit_caller(
             rounds,
             remaining_limit.green()
         );
-        let mut data_round = call_reddit(subreddit, query, listing, remaining_limit, time, &after)
+        let mut data_round = call_reddit(args, subreddit, remaining_limit, &after)
             .await
             .unwrap();
 
@@ -128,8 +115,8 @@ fn number_of_calls(limit: u32) -> u32 {
 }
 
 fn get_subreddit(
-    subreddit: Option<String>,
-    username: Option<String>,
+    subreddit: &Option<String>,
+    username: &Option<String>,
     query: &Option<String>,
 ) -> Result<String, String> {
     match (username, subreddit, query) {
@@ -150,17 +137,15 @@ fn get_subreddit(
 }
 
 async fn call_reddit<T>(
-    username: T,
-    query: &Option<String>,
-    listing: T,
+    args: &Args,
+    subreddit: T,
     limit: u32,
-    time: T,
     after: T,
 ) -> Result<RedditResponseData, Box<dyn Error>>
 where
     T: AsRef<str>,
 {
-    let query_formatted = match &query {
+    let query_formatted = match &args.query {
         Some(query) => format!("&q={query}"),
         None => String::new(),
     };
@@ -171,20 +156,20 @@ where
         format!("&after={}", after.as_ref())
     };
 
-    let listing_formatted = if query.is_some() {
+    let listing_formatted = if args.query.is_some() {
         "search"
     } else {
-        listing.as_ref()
+        args.listing.as_ref()
     };
 
     let client = reqwest::Client::new();
     let response = client
         .get(format!(
             "https://www.reddit.com{}/{}.json?limit={}&t={}{}{}",
-            username.as_ref(),
+            subreddit.as_ref(),
             listing_formatted,
             limit,
-            time.as_ref(),
+            args.time,
             query_formatted,
             after_formatted
         ))
