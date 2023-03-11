@@ -31,39 +31,15 @@ async fn main() {
 
     let subreddit = get_subreddit(args.subreddit, args.username, &args.query).unwrap();
 
-    let rounds = number_of_calls(args.limit);
-
-    let mut data = Vec::new();
-    let mut remaining_limit = args.limit;
-    let mut after = String::new();
-    for round in 0..rounds {
-        info!(
-            "Fetching posts {}/{} | Remaining: {}",
-            round + 1,
-            rounds,
-            remaining_limit.green()
-        );
-        let mut data_round = call_reddit(
-            &subreddit,
-            &args.query,
-            &args.listing,
-            remaining_limit,
-            &args.time,
-            &after,
-        )
-        .await
-        .unwrap();
-
-        if data_round.0.is_empty() {
-            warn!("No more posts to fetch, skipping the rest of the calls");
-            break;
-        }
-
-        after = data_round.0.last().unwrap().name.clone();
-
-        remaining_limit -= data_round.0.len() as u32;
-        data.append(&mut data_round.0);
-    }
+    let data = reddit_caller(
+        args.limit,
+        &subreddit,
+        &args.query,
+        &args.listing,
+        &args.time,
+    )
+    .await
+    .unwrap();
 
     // Download posts
     let mut downloaders = Vec::new();
@@ -102,6 +78,45 @@ async fn main() {
     }
 
     write_data_to_file(data, args.output).await.unwrap();
+}
+
+async fn reddit_caller(
+    limit: u32,
+    subreddit: &str,
+    query: &Option<String>,
+    listing: &str,
+    time: &str,
+) -> Result<Vec<Data>, Box<dyn Error>> {
+    let rounds = number_of_calls(limit);
+
+    let mut data = Vec::new();
+    let mut remaining_limit = limit;
+    let mut after = String::new();
+    for round in 0..rounds {
+        info!(
+            "Fetching posts {}/{} | Remaining: {}",
+            round + 1,
+            rounds,
+            remaining_limit.green()
+        );
+        let mut data_round = call_reddit(subreddit, query, listing, remaining_limit, time, &after)
+            .await
+            .unwrap();
+
+        if data_round.0.is_empty() {
+            warn!(
+                "{}",
+                "No more posts to fetch, skipping the rest of the calls".yellow()
+            );
+            break;
+        }
+
+        after = data_round.0.last().unwrap().name.clone();
+
+        remaining_limit -= data_round.0.len() as u32;
+        data.append(&mut data_round.0);
+    }
+    Ok(data)
 }
 
 fn number_of_calls(limit: u32) -> u32 {
