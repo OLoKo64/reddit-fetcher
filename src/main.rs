@@ -8,7 +8,7 @@ use clap::Parser;
 use log::{error, info, warn};
 use owo_colors::OwoColorize;
 use std::{error::Error, io::Write, sync::Arc};
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, task::JoinSet};
 use types::{Data, RedditResponseData};
 
 use crate::types::RedditResponse;
@@ -37,7 +37,7 @@ async fn main() {
     let data = reddit_caller(&args, &subreddit).await.unwrap();
 
     // Download posts
-    let mut downloaders = Vec::new();
+    let mut downloaders = JoinSet::new();
     if args.download {
         info!("Downloading posts");
         // TODO - Remove clone
@@ -60,16 +60,19 @@ async fn main() {
 
         for post in data {
             let output_folder = Arc::clone(&output_folder);
-            downloaders.push(tokio::spawn(async move {
+            // If you want it to be ordered you need to use a normal Vec and push the join handle, like std threads
+            downloaders.spawn(async move {
                 let post_reddit =
                     downloader::RedditPost::new(output_folder.as_ref(), &post.url, &post.title);
 
                 post_reddit.download_post().await.unwrap_or_else(|err| {
                     error!("{} | {}", post.title.red(), err.red());
                 });
-            }));
+            });
         }
-        futures::future::join_all(downloaders).await;
+        while let Some(result) = downloaders.join_next().await {
+            result.unwrap();
+        }
     }
 
     write_data_to_file(data, args.output).await.unwrap();
