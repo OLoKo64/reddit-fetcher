@@ -13,18 +13,20 @@ use types::{Data, RedditResponseData};
 
 use crate::types::RedditResponse;
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() {
     let args = arg_parser::Args::parse();
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .format_target(false)
         .format(|buf, record| {
+            let style = buf.default_level_style(record.level());
+
             writeln!(
                 buf,
                 "{} | {} | {}",
-                Local::now().format("%Y-%m-%d %H:%M:%S"),
-                record.level(),
+                style.value(Local::now().format("%Y-%m-%d %H:%M:%S")),
+                style.value(record.level()),
                 record.args()
             )
         })
