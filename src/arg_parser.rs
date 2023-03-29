@@ -4,35 +4,35 @@ use clap::Parser;
 /// Downloads posts from a subreddit or user
 pub struct Args {
     /// The username of the Reddit user
-    #[clap(short, long, group = "type")]
+    #[arg(short, long, group = "type")]
     pub username: Option<String>,
 
     /// The subreddit to download posts from
-    #[clap(short, long, group = "type")]
+    #[arg(short, long, group = "type")]
     pub subreddit: Option<String>,
 
     /// The number of posts to download
-    #[clap(short, long, default_value = "25")]
+    #[arg(short, long, default_value = "25")]
     pub limit: u32,
 
     /// The parameter to search by, it is not scoped to the subreddit
-    #[clap(short, long, group = "type")]
+    #[arg(short, long, group = "type")]
     pub query: Option<String>,
 
     /// The type of posts to download, either controversial, best, hot, new, random, rising, top
-    #[clap(long, default_value = "top", value_parser = parser_listing, group = "type")]
+    #[arg(long, default_value = "top", value_parser = parser_listing, group = "type")]
     pub listing: String,
 
     /// The time period to download posts from
-    #[clap(short, long, default_value = "all", value_parser = parser_time)]
+    #[arg(short, long, default_value = "all", value_parser = parser_time)]
     pub time: String,
 
     /// The output file to write the posts to
-    #[clap(short, long, default_value = "data.json")]
+    #[arg(short, long, default_value = "data.json")]
     pub output: String,
 
     /// Download posts from the given subreddit
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub download: bool,
 }
 
