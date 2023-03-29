@@ -1,19 +1,14 @@
-use clap::{ArgGroup, Parser};
+use clap::Parser;
 
 #[derive(Parser)]
-#[command(group(
-    ArgGroup::new("type")
-        .required(true)
-        .args(["query", "listing", "username", "subreddit"])
-))]
 /// Downloads posts from a subreddit or user
 pub struct Args {
     /// The username of the Reddit user
-    #[clap(short, long)]
+    #[clap(short, long, group = "type")]
     pub username: Option<String>,
 
     /// The subreddit to download posts from
-    #[clap(short, long)]
+    #[clap(short, long, group = "type")]
     pub subreddit: Option<String>,
 
     /// The number of posts to download
@@ -21,11 +16,11 @@ pub struct Args {
     pub limit: u32,
 
     /// The parameter to search by, it is not scoped to the subreddit
-    #[clap(short, long)]
+    #[clap(short, long, group = "type")]
     pub query: Option<String>,
 
     /// The type of posts to download, either controversial, best, hot, new, random, rising, top
-    #[clap(long, default_value = "top", value_parser = parser_listing)]
+    #[clap(long, default_value = "top", value_parser = parser_listing, group = "type")]
     pub listing: String,
 
     /// The time period to download posts from
