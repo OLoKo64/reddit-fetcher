@@ -1,6 +1,7 @@
 use clap::Parser;
 
 #[derive(Parser)]
+#[command(version)]
 /// Downloads posts from a subreddit or user
 pub struct Args {
     /// The username of the Reddit user
