@@ -167,7 +167,15 @@ where
         args.listing.as_ref()
     };
 
-    let client = reqwest::Client::new();
+    let mut headers = reqwest::header::HeaderMap::new();
+    headers.insert(
+        reqwest::header::USER_AGENT,
+        reqwest::header::HeaderValue::from_static("RedditDownloader/1.0 by u/RedditorDownloader"),
+    );
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .default_headers(headers)
+        .build()?;
     let response = client
         .get(format!(
             "https://www.reddit.com{}/{}.json?limit={}&t={}{}{}",
@@ -189,6 +197,8 @@ where
         .into_iter()
         .map(|child| child.data)
         .collect::<Vec<_>>();
+
+    dbg!(&data.len());
 
     info!("Successfully retrieved {} posts", data.len().green());
 
